@@ -2,6 +2,8 @@
 
 Phased objectives for PromoGPT-Agent. Use [checklists/v1-foundations](./checklists/v1-foundations.md) to operationalize near-term engineering work.
 
+**Current V1 focus:** finish the **AI gateway** on **Groq** and **Gemini** first (`fast-agent`, `multimodal-lite`, env + metering), then widen to other vendors. In parallel, **social analytics** (connected channels, snapshots, optional Supabase Edge/pg_cron pulls) stays on the near-term path ([integrations-social](./integrations-social.md)).
+
 ---
 
 ## Vision snapshot
@@ -18,6 +20,38 @@ Become the **open infrastructure layer for AI-native marketing and business auto
 4. **Weak autonomous execution** — durable workflows, agents, approvals, memory, events, pipelines.
 
 Narrative detail: [system-overview](./system-overview.md).
+
+---
+
+## V1 — Completion path (engineering order)
+
+Rough order to **close V1**, not a waterfall: some items can overlap, but **do not** broaden to every AI vendor until Groq + Gemini are production-grade in the app (keys, errors, quotas, observability).
+
+### 1. AI gateway — Groq then Gemini (blocker for “V1 AI done”)
+
+| Priority | Scope | Notes |
+| --- | --- | --- |
+| **P0** | **Groq** — `GROQ_API_KEY`, **`fast-agent`** → `llama-3.3-70b-versatile` (`@promogpt/ai-gateway`) | Default completions path; stabilize `POST /api/v1/ai/completions`, usage hooks, user-facing errors |
+| **P0** | **Gemini** — `GEMINI_API_KEY`, **`multimodal-lite`** → `gemini-2.0-flash` | Second primary provider; validates multi-vendor routing before more SKUs |
+| **Later (post V1 AI core)** | OpenAI, Anthropic, DeepSeek, `compat:*` / OpenAI-compatible proxies | Already modelled in gateway; bring up **after** Groq + Gemini are verified in staging and quota story is clear |
+
+Deferred providers stay in the registry for future toggles; **V1 product QA** concentrates on Groq + Gemini.
+
+### 2. Identity, orgs, and dashboard shell
+
+Keep onboarding, workspaces, RBAC, and navigation aligned with checklist items in [checklists/v1-foundations](./checklists/v1-foundations.md).
+
+### 3. Social connectors (breadth scoped to V1)
+
+OAuth + persistence patterns for prioritized networks; analytics pull for connected accounts (snapshots jobs, optional scheduled Edge/pg_cron). Full breadth (YouTube, X, Telegram, LinkedIn parity) tracks behind **stable Meta + TikTok + dashboard**.
+
+### 4. Billing and metering foundations
+
+Stripe path + AI/workflow counters; can trail **Groq/Gemini** once inference path is stable.
+
+### 5. Workflows executor
+
+Definitions + durable runs (Trigger.dev or interim queue) after AI and connectors have happy-path smoke coverage.
 
 ---
 
@@ -42,12 +76,13 @@ Narrative detail: [system-overview](./system-overview.md).
 
 **AI providers**
 
-- OpenAI, Anthropic, Gemini, custom endpoints behind **LiteLLM** abstraction.
+- **V1 must-have:** **Groq** + **Gemini** via **`@promogpt/ai-gateway`** (logical aliases `fast-agent`, `multimodal-lite`; vendor ids `groq`, `gemini`). Environment contract: [`environment`](./environment.md).
+- **V1 stretch / post-core:** OpenAI / Anthropic / DeepSeek and optional **`compat:*`** OpenAI-compatible proxies once Groq + Gemini are validated in product flows.
 
 **Social integrations**
 
-- LinkedIn, X/Twitter, Facebook, Instagram, TikTok, YouTube.
-- Posting, scheduling, analytics ingestion where APIs allow.
+- LinkedIn, X/Twitter, Telegram, Facebook, Instagram, TikTok, YouTube (product breadth).
+- **Shipped scaffolding:** X, Telegram, Instagram, Facebook adapters under `lib/integrations/social` with REST persistence (`connector_accounts`). OAuth callbacks + token vault remain to wire per provider policy.
 
 **Workflow engine**
 

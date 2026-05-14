@@ -23,14 +23,18 @@ Engineering-oriented checklist derived from the V1 product slice in [roadmap](..
 
 ### AI layer
 
-- [ ] LiteLLM (or interim router) abstraction with provider adapters.
+- [ ] **`@promogpt/ai-gateway`** wired into Route Handlers with logical aliases + usage metering hooks ([roadmap sequencing](../roadmap.md): **Groq → Gemini first**).
+- [ ] **Groq (P0):** `fast-agent` path, `GROQ_API_KEY`, error handling, timeouts, and basic usage accounting for `POST /api/v1/ai/completions`.
+- [ ] **Gemini (P0):** `multimodal-lite` path, `GEMINI_API_KEY`, same quality bar as Groq (errors, quotas, logging).
+- [ ] **Defer until P0 green:** hardening `premium-agent` / OpenAI, `reasoning-agent` / Anthropic, `value-agent` / DeepSeek, and `compat:*` proxies beyond smoke config.
 - [ ] Credential storage pattern for BYO keys (encryption at rest design).
 - [ ] Observability hooks: request IDs correlated with traces and Langfuse-compatible events where applicable.
 
 ### Social connectors
 
-- [ ] Connector interface in code (capabilities: post, schedule, fetch analytics).
-- [ ] OAuth/token refresh strategy per provider.
+- [ ] Connector interface + integration adapters (`lib/integrations/social`) with Postgres-backed connection rows.
+- [ ] OAuth/token refresh strategy per provider (callbacks + KMS-backed refs).
+- [ ] Analytics snapshots + pull jobs for supported providers; optional **Supabase Edge/pg_cron** schedule (`supabase/functions/social-analytics-cron`, `POST /api/internal/cron/social-analytics`).
 - [ ] Rate-limit handling and backoff per provider nuances.
 
 ### Workflows

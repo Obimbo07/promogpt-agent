@@ -6,6 +6,7 @@ import {
   ActivityIcon,
   BarChart3Icon,
   BotIcon,
+  Building2Icon,
   LayoutDashboardIcon,
   SettingsIcon,
   SparklesIcon,
@@ -31,6 +32,7 @@ import { cn } from "@/lib/utils";
 
 const navPrimary = [
   { href: "/dashboard", label: "Mission Control", icon: LayoutDashboardIcon },
+  { href: "/onboarding", label: "Onboarding", icon: Building2Icon },
   { href: "/workflows", label: "Workflows", icon: WorkflowIcon },
   { href: "/agents", label: "Agents", icon: BotIcon },
   { href: "/analytics", label: "Analytics", icon: BarChart3Icon },
@@ -130,6 +132,18 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t border-sidebar-border/50 p-2">
         <SidebarMenu>
+          <SidebarMenuItem>
+            <form action="/auth/sign-out" method="post" className="w-full">
+              <SidebarMenuButton
+                type="submit"
+                tooltip="Sign out"
+                className="w-full"
+              >
+                <SparklesIcon className="rotate-12 opacity-80" aria-hidden />
+                <span>Sign out</span>
+              </SidebarMenuButton>
+            </form>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton tooltip="Settings" render={<Link href="/settings" />}>
               <SettingsIcon />

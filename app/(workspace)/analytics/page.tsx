@@ -4,6 +4,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { SocialAnalyticsSection } from "@/components/analytics/social-analytics-section";
 
 export default function AnalyticsPage() {
   return (
@@ -43,8 +44,9 @@ export default function AnalyticsPage() {
           </div>
         </TabsContent>
         <TabsContent value="social" className="mt-6">
-          <div className="rounded-2xl border border-border/70 bg-card/85 p-6 text-sm text-muted-foreground backdrop-blur-sm">
-            Connected accounts, sentiment waterfalls, creator velocity views — scaffolded for realtime feeds.
+          <SocialAnalyticsSection />
+          <div className="mt-8 rounded-2xl border border-border/70 bg-card/85 p-6 text-sm text-muted-foreground backdrop-blur-sm">
+            Sentiment and velocity views can extend this feed as we add more providers and chart layers.
           </div>
         </TabsContent>
         <TabsContent value="automation" className="mt-6">

@@ -27,7 +27,17 @@ Continuous integration mirrors `lint` and `build`; see [.github/workflows/ci.yml
 
 ## Documentation
 
-Start at [`docs/README.md`](./docs/README.md).
+Start at [`docs/README.md`](./docs/README.md). Environment contracts for integrations live in [`docs/environment.md`](./docs/environment.md).
+
+## Self-host (Docker)
+
+Minimal Compose stack (expects `.env.local` with Supabase auth keys and other secrets referenced in docs):
+
+```bash
+docker compose up --build
+```
+
+See [`Dockerfile`](./Dockerfile) and [`docker-compose.yml`](./docker-compose.yml). Database schema SQL ships in [`supabase/migrations/`](./supabase/migrations/).
 
 ## Contributing
 

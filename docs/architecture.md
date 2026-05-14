@@ -22,9 +22,13 @@ This document captures the **intended architecture** for PromoGPT-Agent. Not all
 
 ### AI infrastructure
 
-- **LiteLLM** for multi-provider routing (OpenAI, Anthropic, Gemini, custom endpoints).
-- **LangGraph** for structured agent workflows.
+- **`@promogpt/ai-gateway`** — TypeScript-first routing across Groq / OpenAI / Anthropic / Gemini / DeepSeek plus optional **`compat:`** OpenAI-shaped proxies (LiteLLM, OpenRouter).
+- **LangGraph** for structured agent workflows (target).
 - **OpenTelemetry** and **Langfuse** for traces, evaluation, and cost visibility.
+
+### Integrations
+
+- **`lib/integrations/social`** — workspace-scoped adapters for X, Telegram, Instagram, and Facebook with persisted rows in `connector_accounts`.
 
 ### Deployment
 
@@ -44,8 +48,8 @@ This document captures the **intended architecture** for PromoGPT-Agent. Not all
 /packages
   /agent-runtime    # Execution environment for agents
   /workflow-engine  # Definitions, DAGs, approvals, triggers
-  /connectors       # Social platforms, CRM, webhooks
-  /ai-providers     # LiteLLM/config, provider adapters
+  /connectors       # Shared connector contracts + registry (extends integration adapters)
+  /ai-gateway       # `@promogpt/ai-gateway` — provider routing + usage normalization
   /memory           # Vector + durable context (pgvector-backed)
   /analytics        # Engagement, usage, dashboards data layer
   /permissions      # RBAC, org/workspace scoping

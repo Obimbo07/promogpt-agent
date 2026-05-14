@@ -19,7 +19,7 @@
 - **Plugin-driven** — extensibility via connectors, workflows, and marketplace (roadmap).
 - **Self-hostable** — enterprises own infrastructure, providers, data, and workflows.
 - **Enterprise-ready** — deployment flexibility, governance, and security on the roadmap.
-- **AI-provider agnostic** — multiple models and endpoints behind an abstraction layer (LiteLLM target).
+- **AI-provider agnostic** — multiple models behind **`@promogpt/ai-gateway`** with logical aliases (`fast-agent`, …). **V1 execution focus:** ship **Groq** and **Gemini** first ([roadmap](./roadmap.md)), then expand to other vendors already modelled in the registry. Optional compatibility proxies for LiteLLM/OpenRouter (see [`environment`](./environment.md)).
 
 ## Supported deployment models
 

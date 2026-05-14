@@ -36,6 +36,18 @@ export default function Home() {
 
       <header className="relative z-20 flex justify-end gap-6 px-6 py-6 sm:px-10">
         <Link
+          href="/auth/login"
+          className="text-sm font-medium text-muted-foreground transition-colors hover:text-accent-secondary"
+        >
+          Sign in
+        </Link>
+        <Link
+          href="/auth/sign-up"
+          className="text-sm font-medium text-muted-foreground transition-colors hover:text-accent-secondary"
+        >
+          Create account
+        </Link>
+        <Link
           href="/dashboard"
           className="text-sm font-medium text-muted-foreground transition-colors hover:text-accent-secondary"
         >

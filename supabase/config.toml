@@ -1,0 +1,8 @@
+# Supabase CLI: https://supabase.com/docs/guides/cli/config
+# Per-function JWT: when false, pg_net cron may omit `Authorization` — still send `x-cron-gate`
+# matching Edge secret `CRON_GATE_SECRET`.
+# IMPORTANT: Changing this requires redeploy or the gateway keeps JWT on:
+#   supabase functions deploy social-analytics-cron --no-verify-jwt
+
+[functions.social-analytics-cron]
+verify_jwt = false
