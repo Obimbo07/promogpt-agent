@@ -1,4 +1,5 @@
 import { WorkflowCanvas } from "@/components/workflows/workflow-canvas";
+import { WorkflowRunsPanel } from "@/components/workflows/workflow-runs-panel";
 
 export default function WorkflowsPage() {
   return (
@@ -11,6 +12,7 @@ export default function WorkflowsPage() {
           Nodes, glowing edges, and live execution previews — scaffolded for collaborative automation design.
         </p>
       </div>
+      <WorkflowRunsPanel />
       <WorkflowCanvas />
     </section>
   );

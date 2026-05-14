@@ -7,6 +7,7 @@ import {
   BarChart3Icon,
   BotIcon,
   Building2Icon,
+  CalendarIcon,
   LayoutDashboardIcon,
   SettingsIcon,
   SparklesIcon,
@@ -33,15 +34,10 @@ import { cn } from "@/lib/utils";
 const navPrimary = [
   { href: "/dashboard", label: "Mission Control", icon: LayoutDashboardIcon },
   { href: "/onboarding", label: "Onboarding", icon: Building2Icon },
+  { href: "/calendar", label: "Calendar", icon: CalendarIcon },
   { href: "/workflows", label: "Workflows", icon: WorkflowIcon },
   { href: "/agents", label: "Agents", icon: BotIcon },
   { href: "/analytics", label: "Analytics", icon: BarChart3Icon },
-];
-
-const agentPulse = [
-  { name: "Content sync", tone: "text-accent-success", label: "active" },
-  { name: "Social optimizer", tone: "text-accent-secondary", label: "optimizing" },
-  { name: "Deploy pipeline", tone: "text-muted-foreground", label: "learning" },
 ];
 
 export function AppSidebar() {
@@ -73,12 +69,6 @@ export function AppSidebar() {
             className="rounded-lg border-accent-secondary/40 bg-accent-secondary/10 text-[0.65rem] font-semibold uppercase tracking-wider text-accent-secondary"
           >
             Runtime v1
-          </Badge>
-          <Badge
-            variant="outline"
-            className="rounded-lg border-accent-success/40 bg-accent-success/10 text-[0.65rem] uppercase tracking-wide text-accent-success"
-          >
-            Healthy
           </Badge>
         </div>
       </SidebarHeader>
@@ -112,20 +102,12 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel className="flex items-center gap-2">
             <ActivityIcon className="size-3.5 text-accent-secondary" aria-hidden />
-            AI activity
+            Telemetry
           </SidebarGroupLabel>
           <SidebarGroupContent className="space-y-2 px-2">
-            <ul className="space-y-2 text-xs">
-              {agentPulse.map((row) => (
-                <li
-                  key={row.name}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/30 px-2 py-1.5 group-data-[collapsible=icon]:hidden"
-                >
-                  <span className="truncate text-sidebar-foreground">{row.name}</span>
-                  <span className={cn("shrink-0 font-medium capitalize", row.tone)}>{row.label}</span>
-                </li>
-              ))}
-            </ul>
+            <p className="text-xs leading-snug text-muted-foreground group-data-[collapsible=icon]:hidden">
+              Billing units and workflows load from APIs on Dashboard — no phantom agent feed here.
+            </p>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

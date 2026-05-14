@@ -16,7 +16,21 @@ export function gatewayEnvFromProcess(): GatewayEnv {
         process.env.OPENROUTER_API_KEY
     ),
     openaiBaseUrl: nonempty(process.env.OPENAI_BASE_URL),
+    fetchTimeoutMs: parsePositiveMs(process.env.AI_GATEWAY_FETCH_TIMEOUT_MS),
   };
+}
+
+function parsePositiveMs(value: string | undefined) {
+  if (!value?.trim()) {
+    return 65_000;
+  }
+
+  const n = Number.parseInt(value, 10);
+  if (!Number.isFinite(n) || n < 3000 || n > 180_000) {
+    return 65_000;
+  }
+
+  return n;
 }
 
 function nonempty(value: string | undefined) {

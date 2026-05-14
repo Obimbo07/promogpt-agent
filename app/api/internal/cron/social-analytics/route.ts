@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { authorizeInternalCronRequest } from "@/lib/api/internal-cron";
 import { pullAllConnectedAnalytics } from "@/lib/integrations/social/analytics-pull";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -10,15 +11,11 @@ const bodySchema = z.object({
 
 /**
  * Automated social analytics pulls (cron, Supabase Edge Function, etc.).
- * Secure with ANALYTICS_CRON_SECRET via `Authorization: Bearer <secret>`.
- * Uses the service-role Supabase client so it ignores RLS the same way as trusted server routes.
+ * Secure with `INTERNAL_CRON_SECRET` or `ANALYTICS_CRON_SECRET` via `Authorization: Bearer`.
+ * Uses the service-role Supabase client so it ignores RLS like other trusted server routes.
  */
 export async function POST(request: Request) {
-  const secret = process.env.ANALYTICS_CRON_SECRET?.trim();
-  const authHeader = request.headers.get("authorization") ?? "";
-  const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
-
-  if (!secret || bearer !== secret) {
+  if (!authorizeInternalCronRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

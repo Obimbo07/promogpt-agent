@@ -10,24 +10,39 @@ import {
   YAxis,
 } from "recharts";
 
-const data = [
-  { day: "Mon", tokens: 120_400 },
-  { day: "Tue", tokens: 186_100 },
-  { day: "Wed", tokens: 158_920 },
-  { day: "Thu", tokens: 204_440 },
-  { day: "Fri", tokens: 239_810 },
-  { day: "Sat", tokens: 132_090 },
-  { day: "Sun", tokens: 149_760 },
-];
+export type UsageSeriesPoint = {
+  day: string;
+  tokens: number;
+};
 
-export function TokenUsageChart() {
+export function TokenUsageChart(props: {
+  series: UsageSeriesPoint[];
+  emptyMessage?: string;
+}) {
+  const { series, emptyMessage } = props;
+
+  const normalized = series.map((p) => ({
+    day: p.day.slice(5),
+    tokens: p.tokens,
+  }));
+
+  if (series.length === 0) {
+    return (
+      <div className="flex min-h-[180px] w-full flex-col justify-center rounded-xl border border-border/70 bg-muted/20 px-4 py-8">
+        <p className="text-center text-sm text-muted-foreground">
+          {emptyMessage ?? "No data for this range."}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full rounded-xl border border-border/70 bg-muted/20 p-2 pt-6">
       <div className="h-[220px] w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+          <AreaChart data={normalized} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
             <defs>
-              <linearGradient id="fillTokens" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="fillTokensLive" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="var(--accent-primary)" stopOpacity={0.45} />
                 <stop offset="100%" stopColor="var(--accent-secondary)" stopOpacity={0} />
               </linearGradient>
@@ -57,7 +72,7 @@ export function TokenUsageChart() {
               labelStyle={{ color: "var(--muted-foreground)" }}
               formatter={(value) => [
                 typeof value === "number" ? value.toLocaleString() : "—",
-                "Tokens",
+                "Billable units",
               ]}
             />
             <Area
@@ -65,7 +80,7 @@ export function TokenUsageChart() {
               dataKey="tokens"
               stroke="var(--accent-primary)"
               strokeWidth={2}
-              fill="url(#fillTokens)"
+              fill="url(#fillTokensLive)"
               dot={false}
               activeDot={{ r: 4, strokeWidth: 0, fill: "var(--accent-secondary)" }}
             />

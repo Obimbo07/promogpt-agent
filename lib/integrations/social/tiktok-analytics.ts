@@ -1,8 +1,11 @@
 import type { TikTokConnectorCredentials } from "@/lib/integrations/social/tiktok-oauth-client";
+import { engagementScoreRate } from "@/lib/integrations/social/engagement-score";
+import type { SocialPostMetricRow } from "@/lib/integrations/social/post-snapshot-upsert";
 
 type VideoListItem = {
   id?: string;
   title?: string;
+  create_time?: number;
   view_count?: number | string;
   like_count?: number | string;
   comment_count?: number | string;
@@ -110,4 +113,47 @@ export function isTikTokCredentials(ref: unknown): ref is TikTokConnectorCredent
     "accessToken" in ref &&
     typeof (ref as { accessToken?: string }).accessToken === "string"
   );
+}
+
+/** Normalized post rows from TikTok `video/list` JSON (same shape as {@link fetchTikTokVideoAnalyticsSummary} `raw`). */
+export function parseTikTokVideoPosts(raw: unknown): SocialPostMetricRow[] {
+  const json = raw as VideoListResponse;
+  const videos = json?.data?.videos ?? [];
+  const out: SocialPostMetricRow[] = [];
+
+  for (const v of videos) {
+    const id = typeof v.id === "string" ? v.id : undefined;
+    if (!id) {
+      continue;
+    }
+
+    const views = coalesceMetric(v.view_count);
+    const likes = coalesceMetric(v.like_count);
+    const comments = coalesceMetric(v.comment_count);
+    const shares = coalesceMetric(v.share_count);
+
+    const title = typeof v.title === "string" && v.title.trim() ? v.title : null;
+    const postedAt =
+      typeof v.create_time === "number" && v.create_time > 0 ?
+        new Date(v.create_time * 1000).toISOString()
+      : null;
+
+    out.push({
+      external_post_id: id,
+      title,
+      permalink: `https://www.tiktok.com/video/${id}`,
+      posted_at: postedAt,
+      metrics: {
+        views,
+        likes,
+        comments,
+        shares,
+        engagement_score: engagementScoreRate(views, likes, comments, shares),
+        media_type: "video",
+      },
+      raw_payload: v,
+    });
+  }
+
+  return out;
 }

@@ -4,12 +4,15 @@ import { z } from "zod";
 import {
   billableTokenUnits,
   gatewayEnvFromProcess,
+  GatewayHttpError,
   generateTextGateway,
   toOpenAiCompatibilityCompletion,
 } from "@promogpt/ai-gateway";
 
 import { requireSessionUser } from "@/lib/api/guards";
+import { requireOrganizationMembership, requireWorkspaceMembership } from "@/lib/api/workspace-access";
 import { createRequestId, logApiEvent } from "@/lib/observability/request-context";
+import { sumOrgMonthlyAiChatUnits } from "@/lib/usage/monthly-ai-units";
 
 const promptSchema = z.object({
   organizationId: z.string().uuid(),
@@ -25,6 +28,16 @@ const promptSchema = z.object({
   temperature: z.number().optional(),
 });
 
+function upstreamStatusForGatewayFailure(err: GatewayHttpError): number {
+  if (err.status === 429) {
+    return 429;
+  }
+  if (err.status === 401 || err.status === 403) {
+    return 502;
+  }
+  return 502;
+}
+
 export async function POST(request: Request) {
   const session = await requireSessionUser();
 
@@ -37,6 +50,60 @@ export async function POST(request: Request) {
 
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const orgGate = await requireOrganizationMembership(
+    session.supabase,
+    session.userId,
+    parsed.data.organizationId
+  );
+
+  if (!orgGate.ok) {
+    return orgGate.response;
+  }
+
+  if (parsed.data.workspaceId) {
+    const wsGate = await requireWorkspaceMembership(
+      session.supabase,
+      session.userId,
+      parsed.data.workspaceId
+    );
+
+    if (!wsGate.ok) {
+      return wsGate.response;
+    }
+
+    if (wsGate.workspace.organization_id !== parsed.data.organizationId) {
+      return NextResponse.json({ error: "Workspace is not under this organization" }, { status: 400 });
+    }
+  }
+
+  const monthlyLimitRaw = process.env.AI_USAGE_MONTHLY_LIMIT_UNITS?.trim();
+  let monthlyLimit: bigint | null = null;
+
+  if (monthlyLimitRaw?.length && /^\d+$/.test(monthlyLimitRaw)) {
+    monthlyLimit = BigInt(monthlyLimitRaw);
+  }
+
+  if (monthlyLimit != null && monthlyLimit > BigInt(0)) {
+    try {
+      const { total } = await sumOrgMonthlyAiChatUnits({
+        supabase: session.supabase,
+        organizationId: parsed.data.organizationId,
+      });
+
+      if (total >= monthlyLimit) {
+        return NextResponse.json(
+          { error: "Monthly AI usage limit reached for this organization." },
+          { status: 402 }
+        );
+      }
+    } catch (e) {
+      logApiEvent({
+        event: "ai.usage_meter_read_failed",
+        error: e instanceof Error ? e.message : "unknown",
+      });
+    }
   }
 
   const requestId = createRequestId();
@@ -59,9 +126,29 @@ export async function POST(request: Request) {
       requestId,
       error: err instanceof Error ? err.message : "unknown_error",
     });
+
+    if (err instanceof GatewayHttpError) {
+      return NextResponse.json(
+        {
+          error: err.message,
+          status: err.status,
+          requestId,
+        },
+        { status: upstreamStatusForGatewayFailure(err) }
+      );
+    }
+
+    if (err instanceof Error && err.name === "AbortError") {
+      return NextResponse.json(
+        { error: "AI provider request timed out.", requestId },
+        { status: 504 }
+      );
+    }
+
     return NextResponse.json(
       {
         error: err instanceof Error ? err.message : "AI provider unavailable",
+        requestId,
       },
       { status: 502 }
     );

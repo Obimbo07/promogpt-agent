@@ -39,3 +39,11 @@ export type ConnectorAccountStatus =
   | "pending"
   | "connected"
   | "error";
+
+/** Minimal connector row shared by adapters and analytics ingestion. */
+export type SocialConnectorRow = {
+  id: string;
+  provider: string;
+  status: string | null;
+  credentials_ref: string | null;
+};

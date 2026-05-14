@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { requireSessionUser } from "@/lib/api/guards";
+import { editorCapable, requireWorkspaceMembership } from "@/lib/api/workspace-access";
 import { slugify } from "@/lib/slug";
 
 const createSchema = z.object({
@@ -22,6 +23,12 @@ export async function GET(request: Request) {
 
   if (!workspaceId) {
     return NextResponse.json({ error: "workspace_id query required" }, { status: 400 });
+  }
+
+  const gate = await requireWorkspaceMembership(session.supabase, session.userId, workspaceId);
+
+  if (!gate.ok) {
+    return gate.response;
   }
 
   const { data, error } = await session.supabase
@@ -47,6 +54,16 @@ export async function POST(request: Request) {
 
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const gate = await requireWorkspaceMembership(session.supabase, session.userId, parsed.data.workspaceId);
+
+  if (!gate.ok) {
+    return gate.response;
+  }
+
+  if (!editorCapable(gate.role)) {
+    return NextResponse.json({ error: "Editors or admins required" }, { status: 403 });
   }
 
   const slug = parsed.data.slug ?? slugify(parsed.data.name);
