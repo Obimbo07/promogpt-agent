@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2Icon, RefreshCwIcon } from "lucide-react";
+import { ExternalLinkIcon, Loader2Icon, RefreshCwIcon, SparklesIcon } from "lucide-react";
 import { startTransition, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,18 @@ import {
 import { cn } from "@/lib/utils";
 
 type Workspace = { id: string; name: string; slug: string };
+
+type PostSnapshotRow = {
+  id: string;
+  connector_account_id?: string;
+  provider: string;
+  external_post_id?: string;
+  title: string | null;
+  permalink: string | null;
+  posted_at: string | null;
+  captured_at: string;
+  metrics: Record<string, unknown>;
+};
 
 type SnapshotRow = {
   id: string;
@@ -31,13 +43,25 @@ type SnapshotRow = {
   error?: string | null;
 };
 
+function metricNum(m: Record<string, unknown>, key: string): number | null {
+  const v = m[key];
+  return typeof v === "number" && !Number.isNaN(v) ? v : null;
+}
+
+function fmtMetric(n: number | null): string {
+  return n === null ? "—" : n.toLocaleString();
+}
+
 export function SocialAnalyticsSection() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [workspaceId, setWorkspaceId] = useState<string>("");
   const [loadingWs, setLoadingWs] = useState(true);
   const [latest, setLatest] = useState<SnapshotRow[]>([]);
   const [history, setHistory] = useState<SnapshotRow[]>([]);
+  const [posts, setPosts] = useState<PostSnapshotRow[]>([]);
   const [loadingData, setLoadingData] = useState(false);
+  const [analysisMd, setAnalysisMd] = useState<string | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [syncTone, setSyncTone] = useState<"neutral" | "success" | "warning" | "error">("neutral");
@@ -75,30 +99,45 @@ export function SocialAnalyticsSection() {
       startTransition(() => {
         setLatest([]);
         setHistory([]);
+        setPosts([]);
+        setAnalysisMd(null);
       });
       return;
     }
     let cancelled = false;
     (async () => {
       startTransition(() => setLoadingData(true));
-      const res = await fetch(`/api/v1/workspaces/${workspaceId}/analytics/social?limit=60`, {
-        credentials: "include",
-      });
-      const json = await res.json().catch(() => ({}));
+      const [snapRes, postsRes] = await Promise.all([
+        fetch(`/api/v1/workspaces/${workspaceId}/analytics/social?limit=60`, {
+          credentials: "include",
+        }),
+        fetch(`/api/v1/workspaces/${workspaceId}/analytics/social/posts?limit=40`, {
+          credentials: "include",
+        }),
+      ]);
+      const json = await snapRes.json().catch(() => ({}));
+      const postsJson = await postsRes.json().catch(() => ({}));
       if (cancelled) {
         return;
       }
       startTransition(() => {
         setLoadingData(false);
-        if (!res.ok) {
+        if (!snapRes.ok) {
           setSyncTone("error");
           setNotice(typeof json.error === "string" ? json.error : "Could not load social analytics");
-          return;
+          setLatest([]);
+          setHistory([]);
+        } else {
+          setNotice(null);
+          setSyncTone("neutral");
+          setLatest(Array.isArray(json.latest) ? json.latest : []);
+          setHistory(Array.isArray(json.history) ? json.history : []);
         }
-        setNotice(null);
-        setSyncTone("neutral");
-        setLatest(Array.isArray(json.latest) ? json.latest : []);
-        setHistory(Array.isArray(json.history) ? json.history : []);
+        if (postsRes.ok && Array.isArray(postsJson.posts)) {
+          setPosts(postsJson.posts as PostSnapshotRow[]);
+        } else {
+          setPosts([]);
+        }
       });
     })();
     return () => {
@@ -144,17 +183,54 @@ export function SocialAnalyticsSection() {
       setNotice(`Synced ${pulled} connected channel(s).`);
     }
     startTransition(() => setLoadingData(true));
-    const reload = await fetch(`/api/v1/workspaces/${workspaceId}/analytics/social?limit=60`, {
-      credentials: "include",
-    });
+    const [reload, reloadPosts] = await Promise.all([
+      fetch(`/api/v1/workspaces/${workspaceId}/analytics/social?limit=60`, {
+        credentials: "include",
+      }),
+      fetch(`/api/v1/workspaces/${workspaceId}/analytics/social/posts?limit=40`, {
+        credentials: "include",
+      }),
+    ]);
     const reloadJson = await reload.json().catch(() => ({}));
+    const reloadPostsJson = await reloadPosts.json().catch(() => ({}));
     startTransition(() => {
       setLoadingData(false);
       if (reload.ok) {
         setLatest(Array.isArray(reloadJson.latest) ? reloadJson.latest : []);
         setHistory(Array.isArray(reloadJson.history) ? reloadJson.history : []);
       }
+      if (reloadPosts.ok && Array.isArray(reloadPostsJson.posts)) {
+        setPosts(reloadPostsJson.posts as PostSnapshotRow[]);
+      }
     });
+  }
+
+  async function generateSocialAnalysis() {
+    if (!workspaceId) {
+      return;
+    }
+    setAnalysisLoading(true);
+    setAnalysisMd(null);
+    const res = await fetch(`/api/v1/workspaces/${workspaceId}/analytics/social/analysis`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const json = await res.json().catch(() => ({}));
+    setAnalysisLoading(false);
+    if (!res.ok) {
+      setSyncTone("error");
+      setNotice(typeof json.error === "string" ? json.error : "Could not generate AI analysis");
+      return;
+    }
+    const md =
+      typeof json.analysisMarkdown === "string" ? json.analysisMarkdown
+      : typeof json.playbookMarkdown === "string" ? json.playbookMarkdown
+      : "";
+    setAnalysisMd(md.length > 0 ? md : "_No analysis returned._");
+    setNotice(null);
+    setSyncTone("neutral");
   }
 
   return (
@@ -216,6 +292,54 @@ export function SocialAnalyticsSection() {
         </p>
       : null}
 
+      {workspaceId ?
+        <Card className="rounded-2xl border-border/70 bg-gradient-to-br from-primary/[0.05] via-transparent to-transparent shadow-elevated">
+          <CardHeader className="flex flex-col gap-4 pb-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1.5">
+              <CardTitle className="font-display text-lg">AI analysis</CardTitle>
+              <CardDescription className="max-w-2xl text-pretty">
+                Full read on connected accounts and ingested posts: pull health, post winners vs laggards, then distinct viral
+                playbooks for TikTok, Instagram, and Facebook Page.{" "}
+                <span className="text-foreground/90">
+                  X-style discovery is contrasted only at a strategic level—there is no X post ingest in this workspace.
+                </span>
+              </CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              className="shrink-0 rounded-xl"
+              disabled={analysisLoading}
+              onClick={() => void generateSocialAnalysis()}
+            >
+              {analysisLoading ?
+                <>
+                  <Loader2Icon className="mr-2 size-4 animate-spin" aria-hidden />
+                  Analyzing…
+                </>
+              : <>
+                  <SparklesIcon className="mr-2 size-4" aria-hidden />
+                  Generate analysis
+                </>
+              }
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {analysisMd ?
+              <article className="max-h-[min(70vh,36rem)] overflow-y-auto whitespace-pre-wrap rounded-xl border border-border/50 bg-background/85 px-4 py-3 text-sm leading-relaxed text-foreground">
+                {analysisMd}
+              </article>
+            : null}
+            {!analysisMd && !analysisLoading ?
+              <p className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+                Pull channel data above for richer metrics. You can generate anytime—insights use connector snapshots and any
+                captured posts.
+              </p>
+            : null}
+          </CardContent>
+        </Card>
+      : null}
+
       {!workspaceId && !loadingWs ?
         <p className="text-sm text-muted-foreground">Create a workspace in onboarding to scope social analytics.</p>
       : null}
@@ -233,6 +357,70 @@ export function SocialAnalyticsSection() {
           <span className="font-medium text-foreground">Pull from connected channels</span> to ingest TikTok, Meta, or
           Instagram stats into this workspace.
         </div>
+      : null}
+
+      {!loadingData && workspaceId && posts.length > 0 ?
+        <Card className="rounded-2xl border-border/70 bg-card/85 shadow-elevated">
+          <CardHeader className="pb-2">
+            <CardTitle className="font-display text-lg">Recent posts</CardTitle>
+            <CardDescription>
+              Latest captured metrics per post (merged across pulls). TikTok rows include views; Meta rows rank on public
+              interactions.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full min-w-[640px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border/60 text-left text-muted-foreground">
+                  <th className="pb-2 pr-3 font-medium">Channel</th>
+                  <th className="pb-2 pr-3 font-medium tabular-nums">Score</th>
+                  <th className="pb-2 pr-3 font-medium tabular-nums">Views</th>
+                  <th className="pb-2 pr-3 font-medium tabular-nums">Likes</th>
+                  <th className="pb-2 pr-3 font-medium tabular-nums">Comments</th>
+                  <th className="pb-2 pr-3 font-medium tabular-nums">Shares</th>
+                  <th className="pb-2 pr-3 font-medium">Posted</th>
+                  <th className="pb-2 font-medium">Preview</th>
+                  <th className="pb-2 w-10" aria-label="Open link" />
+                </tr>
+              </thead>
+              <tbody>
+                {posts.map((p) => {
+                  const m = p.metrics ?? {};
+                  const score = metricNum(m, "engagement_score");
+                  return (
+                    <tr key={p.id} className="border-b border-border/35 align-top">
+                      <td className="py-2 pr-3 capitalize">{p.provider}</td>
+                      <td className="py-2 pr-3 tabular-nums">{fmtMetric(score)}</td>
+                      <td className="py-2 pr-3 tabular-nums">{fmtMetric(metricNum(m, "views"))}</td>
+                      <td className="py-2 pr-3 tabular-nums">{fmtMetric(metricNum(m, "likes"))}</td>
+                      <td className="py-2 pr-3 tabular-nums">{fmtMetric(metricNum(m, "comments"))}</td>
+                      <td className="py-2 pr-3 tabular-nums">{fmtMetric(metricNum(m, "shares"))}</td>
+                      <td className="py-2 pr-3 whitespace-nowrap text-muted-foreground">
+                        {p.posted_at ? new Date(p.posted_at).toLocaleDateString() : "—"}
+                      </td>
+                      <td className="py-2 pr-3 max-w-[220px] truncate" title={p.title ?? undefined}>
+                        {p.title ?? "—"}
+                      </td>
+                      <td className="py-2">
+                        {p.permalink ?
+                          <a
+                            href={p.permalink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex text-primary hover:underline"
+                            aria-label="Open post"
+                          >
+                            <ExternalLinkIcon className="size-4" aria-hidden />
+                          </a>
+                        : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
       : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

@@ -1,11 +1,12 @@
 import { logApiEvent } from "@/lib/observability/request-context";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import { processWorkflowRunById } from "./workflow-processor";
 import type { JobDispatcher, JobName, JobPayload } from "./types";
 
 /**
- * Development placeholder: promote runs to `running` then `succeeded` when service role is present.
- * Swap for Trigger.dev when configured.
+ * Immediately processes runs when the service-role client is configured; otherwise no-ops.
+ * Supabase / Vercel cron should call `POST /api/internal/cron/workflow-runs` to drain pending rows in serverless churn.
  */
 export function createInMemoryJobDispatcher(): JobDispatcher {
   return {
@@ -14,44 +15,28 @@ export function createInMemoryJobDispatcher(): JobDispatcher {
 
       if (name === "workflow.run") {
         const p = payload as JobPayload["workflow.run"];
-        queueMicrotask(() => runWorkflowStub(jobId, p));
+        const admin = createAdminClient();
+
+        if (!admin) {
+          logApiEvent({
+            event: "job.workflow.deferred",
+            reason: "missing_service_role",
+            workflowRunId: p.workflowRunId,
+            jobId,
+          });
+        } else {
+          void processWorkflowRunById(admin, p.workflowRunId).catch((err) => {
+            logApiEvent({
+              event: "job.workflow.processor_error",
+              workflowRunId: p.workflowRunId,
+              jobId,
+              error: err instanceof Error ? err.message : "unknown",
+            });
+          });
+        }
       }
 
       return { jobId };
     },
   };
-}
-
-async function runWorkflowStub(
-  jobId: string,
-  p: JobPayload["workflow.run"]
-) {
-  const admin = createAdminClient();
-  if (!admin) {
-    logApiEvent({
-      event: "job.workflow.runskipped",
-      reason: "missing_service_role",
-      workflowRunId: p.workflowRunId,
-      jobId,
-    });
-    return;
-  }
-
-  await admin.from("workflow_runs").update({ status: "running" }).eq("id", p.workflowRunId);
-
-  await new Promise((r) => setTimeout(r, 250));
-
-  await admin
-    .from("workflow_runs")
-    .update({
-      status: "succeeded",
-      completed_at: new Date().toISOString(),
-    })
-    .eq("id", p.workflowRunId);
-
-  logApiEvent({
-    event: "job.workflow.runcompleted_stub",
-    jobId,
-    workflowRunId: p.workflowRunId,
-  });
 }

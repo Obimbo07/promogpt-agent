@@ -1,4 +1,5 @@
 import type { ChatMessage, GenerateTextInput, GenerateTextResult, GatewayEnv, TokenUsage } from "../types";
+import { maybeTimeoutSignal } from "./openai-shaped";
 
 /**
  * Anthropic Messages API (non-OpenAI).
@@ -32,6 +33,7 @@ export async function generateWithAnthropic(
       ...(system ? { system } : {}),
       messages,
     }),
+    signal: maybeTimeoutSignal(env.fetchTimeoutMs),
   });
 
   const raw: unknown = await res.json().catch(() => ({}));

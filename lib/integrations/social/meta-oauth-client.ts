@@ -194,3 +194,24 @@ export function buildMetaCredentialsBlob(opts: {
       : opts.pages.find((p) => p.instagramBusinessAccount)?.instagramBusinessAccount?.id ?? null,
   };
 }
+
+export async function rotateMetaConnectorCredentials(
+  creds: MetaConnectorCredentials
+): Promise<MetaConnectorCredentials> {
+  const longLived = await exchangeMetaLongLivedUserToken(creds.userAccessToken);
+  const userTokenExpiresAt =
+    longLived.expiresInSeconds != null ?
+      new Date(Date.now() + longLived.expiresInSeconds * 1000)
+    : null;
+
+  const fbUser = await fetchMetaUserProfile(longLived.accessToken);
+  const pages = await fetchMetaUserPages(longLived.accessToken);
+
+  return buildMetaCredentialsBlob({
+    provider: creds.provider,
+    userAccessToken: longLived.accessToken,
+    userTokenExpiresAt,
+    fbUser,
+    pages,
+  });
+}

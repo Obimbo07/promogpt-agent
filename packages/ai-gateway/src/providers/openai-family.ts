@@ -21,6 +21,7 @@ export async function generateWithGroq(
     messages: input.messages,
     temperature: input.temperature,
     maxTokens: input.maxTokens,
+    fetchTimeoutMs: env.fetchTimeoutMs,
   });
 
   return {
@@ -53,6 +54,7 @@ export async function generateWithOpenAI(
     messages: input.messages,
     temperature: input.temperature,
     maxTokens: input.maxTokens,
+    fetchTimeoutMs: env.fetchTimeoutMs,
   });
 
   return {
@@ -84,6 +86,7 @@ export async function generateWithDeepSeek(
     messages: input.messages,
     temperature: input.temperature,
     maxTokens: input.maxTokens,
+    fetchTimeoutMs: env.fetchTimeoutMs,
   });
 
   return {
@@ -118,6 +121,7 @@ export async function generateWithOpenAiCompat(
     messages: input.messages,
     temperature: input.temperature,
     maxTokens: input.maxTokens,
+    fetchTimeoutMs: env.fetchTimeoutMs,
   });
 
   return {

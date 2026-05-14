@@ -9,16 +9,21 @@ import {
   fetchInstagramUserInsightsSummary,
 } from "@/lib/integrations/social/meta-analytics";
 import type { AnalyticsMetricsEnvelope } from "@/lib/integrations/social/normalized-metrics";
-import type { SocialProviderId } from "@/lib/integrations/social/types";
-import { fetchTikTokVideoAnalyticsSummary, isTikTokCredentials } from "@/lib/integrations/social/tiktok-analytics";
+import type { SocialProviderId, SocialConnectorRow } from "@/lib/integrations/social/types";
+import {
+  fetchFacebookRecentPosts,
+  fetchInstagramRecentMedia,
+  parseFacebookRecentPosts,
+  parseInstagramRecentMedia,
+} from "@/lib/integrations/social/meta-post-analytics";
+import { upsertSocialPostSnapshots } from "@/lib/integrations/social/post-snapshot-upsert";
+import {
+  fetchTikTokVideoAnalyticsSummary,
+  isTikTokCredentials,
+  parseTikTokVideoPosts,
+} from "@/lib/integrations/social/tiktok-analytics";
+import { hydrateConnectorCredentialsForPull } from "@/lib/integrations/social/connector-token-hydration";
 import { utcHourStart } from "@/lib/time/utc-period";
-
-export type SocialConnectorRow = {
-  id: string;
-  provider: string;
-  status: string | null;
-  credentials_ref: string | null;
-};
 
 function parseJson<T>(ref: string | null): T | null {
   if (!ref) {
@@ -103,7 +108,9 @@ export async function pullConnectorSnapshot(args: {
     return { ok: false, provider, connectorAccountId: row.id, error: "Connector not connected or missing credentials" };
   }
 
-  const credsUnknown = parseJson<unknown>(row.credentials_ref);
+  const hydrated = await hydrateConnectorCredentialsForPull(supabase, row);
+  const activeCredentialsRef = hydrated.credentials_ref ?? row.credentials_ref;
+  const credsUnknown = parseJson<unknown>(activeCredentialsRef);
 
   try {
     if (provider === "facebook" && isMetaCreds(credsUnknown)) {
@@ -132,6 +139,18 @@ export async function pullConnectorSnapshot(args: {
         periodStart,
         periodGranularity,
       });
+      try {
+        const postsRaw = await fetchFacebookRecentPosts({ pageId, pageAccessToken: token });
+        await upsertSocialPostSnapshots({
+          supabase,
+          workspaceId,
+          connectorAccountId: row.id,
+          provider: "facebook",
+          posts: parseFacebookRecentPosts(postsRaw),
+        });
+      } catch {
+        /* Optional scopes — account snapshot already saved */
+      }
       return { ok: true, provider, connectorAccountId: row.id, metrics };
     }
 
@@ -161,6 +180,18 @@ export async function pullConnectorSnapshot(args: {
         periodStart,
         periodGranularity,
       });
+      try {
+        const mediaRaw = await fetchInstagramRecentMedia({ igUserId: igId, pageAccessToken: token });
+        await upsertSocialPostSnapshots({
+          supabase,
+          workspaceId,
+          connectorAccountId: row.id,
+          provider: "instagram",
+          posts: parseInstagramRecentMedia(mediaRaw),
+        });
+      } catch {
+        /* Optional scopes — account snapshot already saved */
+      }
       return { ok: true, provider, connectorAccountId: row.id, metrics };
     }
 
@@ -189,6 +220,13 @@ export async function pullConnectorSnapshot(args: {
         error: null,
         periodStart,
         periodGranularity,
+      });
+      await upsertSocialPostSnapshots({
+        supabase,
+        workspaceId,
+        connectorAccountId: row.id,
+        provider: "tiktok",
+        posts: parseTikTokVideoPosts(summary.raw),
       });
       return { ok: true, provider, connectorAccountId: row.id, metrics };
     }

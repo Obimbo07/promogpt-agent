@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
+import { BusinessSnapshotReport } from "@/components/onboarding/business-snapshot-report";
 import { WorkspaceConnectionsPanel } from "@/components/onboarding/workspace-connections-panel";
 import { Button } from "@/components/ui/button";
 import {
@@ -122,9 +123,8 @@ export function OnboardingWizard(props: {
       <div>
         <h1 className="font-display text-3xl font-bold tracking-tight">Finish onboarding</h1>
         <p className="mt-2 text-muted-foreground">
-          Complete your profile and link social accounts for this workspace. Connections persist in Postgres via{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">connector_accounts</code> — OAuth callbacks and token
-          vault wiring land next.
+          Complete your profile and link TikTok or Meta for this workspace. Connections persist in Postgres via{" "}
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">connector_accounts</code>; analytics snapshots appear after you pull from socials (Analytics + business report below).
         </p>
       </div>
 
@@ -237,6 +237,8 @@ export function OnboardingWizard(props: {
       </Card>
 
       <WorkspaceConnectionsPanel workspaceId={resolvedWorkspaceId} onNotice={emitNotice} />
+
+      <BusinessSnapshotReport workspaceId={resolvedWorkspaceId} />
 
       <div className="flex justify-end">
         <Button type="button" variant="outline" className="rounded-xl" onClick={() => router.push("/dashboard")}>

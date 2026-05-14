@@ -53,4 +53,5 @@ export type GatewayEnv = {
   openaiCompatBaseUrl?: string;
   openaiCompatApiKey?: string;
   openaiBaseUrl?: string;
+  fetchTimeoutMs?: number;
 };

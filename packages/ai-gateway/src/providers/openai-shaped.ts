@@ -1,5 +1,18 @@
 import type { ChatMessage, TokenUsage } from "../types";
 
+export function maybeTimeoutSignal(ms: number | undefined) {
+  const cap = ms && ms > 0 ? ms : undefined;
+  if (!cap) {
+    return undefined;
+  }
+
+  try {
+    return AbortSignal.timeout(cap);
+  } catch {
+    return undefined;
+  }
+}
+
 export function usageFromOpenAiCompat(usage: unknown): TokenUsage {
   if (!usage || typeof usage !== "object") {
     return {};
@@ -32,6 +45,7 @@ export async function fetchOpenAiChatCompletion(input: {
   messages: ChatMessage[];
   temperature?: number;
   maxTokens?: number;
+  fetchTimeoutMs?: number;
 }): Promise<{ text: string; usage: TokenUsage; raw: unknown }> {
   const base = input.baseUrl.replace(/\/$/, "");
 
@@ -47,6 +61,7 @@ export async function fetchOpenAiChatCompletion(input: {
       temperature: input.temperature ?? 0.7,
       ...(input.maxTokens ? { max_tokens: input.maxTokens } : {}),
     }),
+    signal: maybeTimeoutSignal(input.fetchTimeoutMs),
   });
 
   const raw: unknown = await res.json().catch(() => ({}));

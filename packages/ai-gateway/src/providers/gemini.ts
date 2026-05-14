@@ -1,4 +1,5 @@
 import type { ChatMessage, GenerateTextInput, GenerateTextResult, GatewayEnv, TokenUsage } from "../types";
+import { GatewayHttpError, maybeTimeoutSignal } from "./openai-shaped";
 
 /**
  * Google Generative Language API (single-user prompt consolidation for PromoGPT-Agent V1).
@@ -37,12 +38,13 @@ export async function generateWithGemini(
         temperature: input.temperature ?? 0.7,
       },
     }),
+    signal: maybeTimeoutSignal(env.fetchTimeoutMs),
   });
 
   const raw: unknown = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw formatVendorError(res.status, raw);
+    throw new GatewayHttpError(`Gemini error (${res.status})`, res.status, raw);
   }
 
   const text = extractGeminiAssistantText(raw);
@@ -116,17 +118,3 @@ function extractGeminiUsage(raw: unknown): TokenUsage {
   };
 }
 
-function formatVendorError(status: number, raw: unknown) {
-  let slice = "";
-
-  try {
-    slice =
-      typeof raw === "object" && raw !== null ?
-        JSON.stringify(raw).slice(0, 500)
-      : String(raw ?? "");
-  } catch {
-    slice = "(unreadable)";
-  }
-
-  return new Error(`Gemini error (${status}): ${slice}`);
-}
